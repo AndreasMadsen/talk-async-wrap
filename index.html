@@ -16,10 +16,10 @@
 		<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, minimal-ui">
 
 		<link rel="stylesheet" href="css/reveal.css">
-		<link rel="stylesheet" href="css/theme/black.css" id="theme">
+		<link rel="stylesheet" href="css/theme/moon.css" id="theme">
 
 		<!-- Code syntax highlighting -->
-		<link rel="stylesheet" href="lib/css/zenburn.css">
+		<link rel="stylesheet" href="lib/css/solarized_dark.css">
 
 		<!-- Printing and PDF exports -->
 		<script>
@@ -44,6 +44,388 @@
 				<section>
 					<h1>Introduction to AsyncWrap</h1>
 				</section>
+
+				<section>
+					<h1>You</h1>
+					<section>
+						<ul style="line-height: 200%;">
+							<li>Published npm module</li>
+							<li>Looked at io.js</li>
+							<li>Read nodecore code</li>
+						</ul>
+					</section>
+				</section>
+
+				<section>
+					<h1>Me</h1>
+					<section>
+						<strong>Andreas Madsen</strong>
+						<h2 style="margin-top: 40px;">Once nodecore hacker</h2>
+						<em>Cluster, Child Process, Stream v2</em>
+						<h2 style="margin-top: 40px;">Now mathmagician</h2>
+						<em>AI, Machine Learning, GPU programming</em>
+					</section>
+					<section>
+						<div>
+							Previous Talk:
+							<a href="http://andreasmadsen.github.io/talk-tracing-tool/">
+								Writing an asynchronous traceing tool</a><br>
+							<code>npm install trace</code>
+						</div>
+						<div style="margin-top: 40px;">
+							io.js tracing-wg (working group) member
+						</div>
+					</section>
+				</section>
+
+				<section>
+					<h1>Tracing-wg</h1>
+					<section>
+						Improve the profiling and debugging experience<br>
+						<a style="font-size: 70%;" href="https://github.com/iojs/tracing-wg">
+							https://github.com/iojs/tracing-wg
+						</a>
+
+						<ul class="fragment" style="margin-top: 50px;">
+							<li>LTTng recently
+								<a href="https://github.com/iojs/io.js/pull/702">added in io.js</a>
+							</li>
+							<li>Integrating
+								<a href="https://github.com/iojs/io.js/issues/671#issuecomment-73191538">
+									<code>trace_event</code>
+								</a> from v8
+							</li>
+							<li>Exposing low level trace events though
+								<code>async_wrap</code>
+							</li>
+						</ul>
+					</section>
+					<section>
+						<h3 style="margin-top: 70px;">What do you need ?</h3>
+					</section>
+				</section>
+
+				<section>
+					<h1>AsyncWrap</h1>
+					<section>
+						<ul>
+							<li>Undocumented API</li>
+							<li>No interface like you are used too</li>
+						</ul>
+					</section>
+				</section>
+
+				<section>
+					<h1>The basics</h1>
+					<section>
+						<pre><code class="javascript" data-trim>
+// Right now async_wrap is an internal C++ module,
+// thus require doesn't work.
+
+var asyncWrap = process.binding('async_wrap');
+						</code></pre>
+						<pre class="fragment"><code class="javascript">
+// Think of `CallInitHook` as the property name
+// and `kCallInitHook` as the way to access it
+var kCallInitHook = 0;
+var asyncHooksObject = {};
+
+// Enable async wrap
+async_wrap.setupHooks(asyncHooksObject,
+    asyncInit, asyncBefore, asyncAfter);
+</code></pre>
+<pre class="fragment"><code class="javascript">
+// Enable init events (default 0)
+// Must be set after `async_wrap.setupHooks` is called
+asyncHooksObject[kCallInitHook] = 1;</code></pre>
+					</section>
+					<section>
+						<pre style="width: 60%; float: left;"><code class="javascript" data-trim>
+function asyncInit() {
+  log('async_wrap: init');
+}
+function asyncBefore() {
+  log('async_wrap: before');
+}
+function asyncAfter() {
+  log('async_wrap: after');
+}
+
+log('user: before');
+fs.open(__filename, 'r', function (err, fd) {
+  log('user: done');
+});
+log('user: after');
+						</code></pre>
+						<pre style="width: 40%; float: left; padding-left: 5px;">
+<span style="color: #657b83">$ node the_basic.js<blink class="fragment fade-out" data-fragment-index="1">|</blink></span>
+<span class="fragment" data-fragment-index="1">user: before
+<span style="color: #cb4b16">async_wrap: init</span>
+user: after
+<span style="color: #cb4b16">async_wrap: before</span>
+user: done
+<span style="color: #cb4b16">async_wrap: after</span></span>
+						</pre>
+					</section>
+				</section>
+
+				<section>
+					<h1>Debugging</h1>
+					<section>
+						<pre style="width: 60%; float: left;"><code class="javascript" data-trim>
+function asyncInit() {
+  console.log('async_wrap: init');
+}
+function asyncBefore() {
+  console.log('async_wrap: before');
+}
+function asyncAfter() {
+  console.log('async_wrap: after');
+}
+
+console.log('user: before');
+fs.open(__filename, 'r', function (err, fd) {
+  console.log('user: done');
+});
+console.log('user: after');
+						</code></pre>
+						<pre style="width: 40%; float: left; padding-left: 5px;">
+<span style="color: #657b83">$ node evil_recursion.js<blink class="fragment fade-out" data-fragment-index="1">|</blink></span>
+<span class="fragment" data-fragment-index="1">user: before
+<span style="color: #cb4b16">FATAL ERROR:
+  node::AsyncWrap::AsyncWrap
+  init hook threw</span>
+						</pre>
+					</section>
+					<section>
+						<code>console.log</code> is async, thus it invokes <code>async_wrap</code>.
+						<pre style="margin-top: 50px;"><code class="javascript" data-trim>
+// Undocumented way
+process._rawDebug(data, ...)
+
+// Sync write to stdout (1), or stderr (2)
+fs.writeSync(1, util.format(data, ...))
+						</code></pre>
+					</section>
+				</section>
+
+				<section>
+					<h1>Timers</h1>
+					<section>
+						<pre style="width: 60%; float: left;"><code class="javascript" data-trim>
+log('user: before #1');
+setTimeout(function () {
+  log('user: done #1');
+}, 2000);
+log('user: after #1');
+
+log('user: before #2');
+setTimeout(function () {
+  log('user: done #2');
+}, 2000);
+log('user: after #2');
+						</code></pre>
+						<pre style="width: 40%; float: left; padding-left: 5px;">
+<span style="color: #657b83">$ node timer_issue.js<blink class="fragment fade-out" data-fragment-index="1" data-autoslide="2000">|</blink></span>
+<span class="fragment" data-fragment-index="1">user: before #1
+<span style="color: #cb4b16">async_wrap: init</span>
+user: after #1
+user: before #2
+user: after #2
+<span class="fragment">
+<span style="color: #cb4b16">async_wrap: before</span>
+user: done #1
+user: done #2
+<span style="color: #cb4b16">async_wrap: after</span>
+</span>
+</span>
+						</pre>
+					</section>
+					<section>
+						<h3>Known issue</h3>
+						<ul>
+							<li>Timers are joint together. Only one call to C++</li>
+							<li>Solution is to overwrite <code>setTimeout</code></li>
+							<li>Also <code>setInterval</code>,
+											 <code>setImmediate</code> and
+											 <code>nextTick</code></li>
+						</ul>
+					</section>
+				</section>
+
+				<section>
+					<h1>Error catching</h1>
+					<section>
+						<pre style="width: 50%; float: left;"><code class="javascript" data-trim>
+function asyncBefore() {
+  log('async_wrap: before');
+}
+function asyncAfter() {
+  log('async_wrap: after');
+}
+
+fs.open(__filename, 'r', function () {
+  throw new Error('ups');
+});
+						</code></pre>
+						<pre style="width: 50%; float: left; padding-left: 5px;">
+<span style="color: #657b83">$ node leaky_error.js<blink class="fragment fade-out" data-fragment-index="1">|</blink></span>
+<span class="fragment" data-fragment-index="1"><span style="color: #cb4b16">async_wrap: init
+async_wrap: before</span>
+/demos/leaky_error.js:33
+  throw new Error('ups');
+        ^
+Error: ups
+  at /demos/leaky_error.js:33:9
+  at FSReqWrap.oncomplete (fs.js:73:15)
+						</pre>
+					</section>
+					<section>
+						<pre style="width: 50%; float: left;"><code class="javascript" data-trim>
+function asyncBefore() {
+  process.on(
+    'uncaughtException', asyncError);
+}
+function asyncAfter() {
+  process.removeListener(
+    'uncaughtException', asyncError);
+}
+function asyncError(err) {
+  log('(catch error)', err.stack);
+}
+
+fs.open(__filename, 'r', function () {
+  throw new Error('ups');
+});
+						</code></pre>
+						<pre style="width: 50%; float: left; padding-left: 5px;">
+<span style="color: #657b83">$ node catch_error.js<blink class="fragment fade-out" data-fragment-index="1">|</blink></span>
+<span class="fragment" data-fragment-index="1">(catch error) Error: ups
+  at /demos/catch_error.js:38:9
+  at FSReqWrap.oncomplete (fs.js:73:15)
+						</pre>
+					</section>
+					<section>
+						<h3>Known issue</h3>
+						<ul>
+							<li>By catching, the throw origin is removed</li>
+							<li>Mutate the error, but let it bubble up</li>
+							<li>For now, use:
+								<a href="https://github.com/iojs/io.js/blob/v1.5.1/src/node.js#L220">
+									<code>process._fatalException</code>
+								</a>
+							</li>
+							<li>Even more undocumented and private API<br>
+								than <code>async_wrap</code>!
+							</li>
+						</ul>
+					</section>
+					<section>
+						<pre style="width: 50%; float: left;"><code class="javascript" data-trim>
+var catchError = false;
+function asyncBefore() {
+  catchError = true;
+}
+function asyncAfter() {
+  catchError = false;
+}
+var old = process._fatalException;
+process._fatalException = function (e){
+  if (catchError)
+    e.stack = 'Mutate' + e.stack;
+  old.apply(process, arguments);
+};
+
+fs.open(__filename, 'r', function () {
+  throw new Error('ups');
+});
+						</code></pre>
+						<pre style="width: 50%; float: left; padding-left: 5px;">
+<span style="color: #657b83">$ node catch_error.js<blink class="fragment fade-out" data-fragment-index="1">|</blink></span>
+<span class="fragment" data-fragment-index="1">/demos/mutate_error.js:41
+  throw new Error('ups');
+        ^
+MutateError: ups
+  at /demos/mutate_error.js:41:9
+  at FSReqWrap.oncomplete (fs.js:73:15)
+</pre>
+					</section>
+				</section>
+
+				<section>
+					<h1>Handle object</h1>
+					<section>
+						<pre style="width: 50%; float: left; height: 405px;"><code class="javascript" data-trim style="height: 100%;">
+function asyncInit() {
+  process._rawDebug(show(this));
+}
+
+function show (handle) {
+  // compilcated
+}
+
+net.connect(80, 'google.com',
+  function (socket) { });
+						</code></pre>
+						<pre style="width: 50%; float: left; padding-left: 5px;">
+<span style="color: #657b83">$ node catch_error.js<blink class="fragment fade-out" data-fragment-index="1">|</blink></span>
+<span class="fragment" data-fragment-index="1">/demos/handle_explore.js:41
+[TCP] {
+  fd: [don't touch me]
+  onread: [event]
+  ...
+}
+[GetAddrInfoReqWrap] {
+  family: 0
+  hostname: google.com
+  ...
+}
+[TCPConnectWrap] {
+  address: 80.239.174.116
+  port: 80
+  ...
+}
+</pre>
+					</section>
+					<section>
+						<h3>Handle objects</h3>
+						<ul>
+							<li>Short story: what is send to C++ land</li>
+							<li>Some properties causes segmentaion failure</li>
+							<li><code>this.constructor.name</code> is information too</li>
+							<li>Can carry user properties</li>
+							<li>Safe property: <code>this._asyncQueue = {}</code></li>
+						</ul>
+					</section>
+					<section>
+						<pre style="width: 60%; float: left;"><code class="javascript" data-trim>
+var uid = 0;
+function asyncInit() {
+  this._uid = uid++
+  log('async_wrap: init / ' + this._uid);
+}
+function asyncBefore() {
+  log('async_wrap: before / ' + this._uid);
+}
+function asyncAfter() {
+  log('async_wrap: after / ' + this._uid);
+}
+
+net.connect(80, 'google.com',
+  function (socket) { });
+						</code></pre>
+						<pre style="width: 40%; float: left; padding-left: 5px;">
+<span style="color: #657b83">$ node handle_mutate.js<blink class="fragment fade-out" data-fragment-index="1">|</blink></span>
+<span class="fragment" data-fragment-index="1" style="color: #cb4b16">async_wrap: init / 0
+async_wrap: init / 1
+async_wrap: before / 1
+async_wrap: init / 2
+async_wrap: after / 1
+async_wrap: before / 2
+async_wrap: after / 2</span>
+						</pre>
+					</section>
+				</section>
 			</div>
 
 		</div>
@@ -52,25 +434,22 @@
 		<script src="js/reveal.js"></script>
 
 		<script>
-
 			// Full list of configuration options available at:
 			// https://github.com/hakimel/reveal.js#configuration
 			Reveal.initialize({
 				controls: true,
 				progress: true,
 				history: true,
-				center: true,
+				center: false,
 
-				transition: 'slide', // none/fade/slide/convex/concave/zoom
+				transition: 'default', // none/fade/slide/convex/concave/zoom
 
 				// Optional reveal.js plugins
 				dependencies: [
-					{ src: 'lib/js/classList.js', condition: function() { return !document.body.classList; } },
 					{ src: 'plugin/highlight/highlight.js', async: true, callback: function() { hljs.initHighlightingOnLoad(); } },
 					{ src: 'plugin/zoom-js/zoom.js', async: true }
 				]
 			});
-
 		</script>
 
 	</body>

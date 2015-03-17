@@ -14,6 +14,7 @@
 // Include theme-specific fonts
 @import url(../../lib/font/league-gothic/league-gothic.css);
 @import url(https://fonts.googleapis.com/css?family=Lato:400,700,400italic,700italic);
+//@import url(../../lib/font/lato/lato.css);
 
 /**
  * Solarized colors by Ethan Schoonover
@@ -45,6 +46,7 @@ $green:     #859900;
 $mainColor: $base1;
 $headingColor: $base2;
 $headingTextShadow: none;
+$headingTextTransform: none;
 $backgroundColor: $base03;
 $linkColor: $blue;
 $linkColorHover: lighten( $linkColor, 20% );
@@ -55,3 +57,29 @@ $selectionBackgroundColor: $magenta;
 // Theme template ------------------------------
 @import "../template/theme";
 // ---------------------------------------------
+
+.reveal pre {
+	box-sizing: border-box;
+	box-shadow: none;
+	width: 70%;
+	margin: 0 auto;
+	code {
+		border-left: 5px solid $base00;
+		border-right: 3px solid $base00;
+		background: none;
+		padding: 0 5px;
+	}
+}
+
+blink {
+  -webkit-animation: blink 1s step-end infinite;
+  animation: blink 1s step-end infinite
+}
+
+@-webkit-keyframes blink {
+  67% { opacity: 0 }
+}
+
+@keyframes blink {
+  67% { opacity: 0 }
+}
