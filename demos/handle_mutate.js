@@ -19,18 +19,19 @@ asyncWrap.setupHooks(asyncHooksObject,
 // Must be set after `async_wrap.setupHooks` is called
 asyncHooksObject[kCallInitHook] = 1;
 
-var uid = 0;
 function asyncInit() {
-  this._uid = uid++
-  process._rawDebug('async_wrap: init / ' + this._uid);
+  this._start = Date.now();
+  process._rawDebug(this.constructor.name + ': init');
 }
 function asyncBefore() {
-  process._rawDebug('async_wrap: before / ' + this._uid);
+  process._rawDebug(this.constructor.name +
+    ': before [' + (Date.now() - this._start) + ' ms]');
 }
 function asyncAfter() {
-  process._rawDebug('async_wrap: after / ' + this._uid);
+  process._rawDebug(this.constructor.name +
+    ': after [' + (Date.now() - this._start) + ' ms]');
 }
 
-net.connect(80, 'google.com', function () {
-
+var socket = net.connect(80, 'google.com', function () {
+  socket.end();
 });
