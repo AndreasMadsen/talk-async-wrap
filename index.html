@@ -135,7 +135,7 @@ async_wrap.setupHooks(asyncHooksObject,
     asyncInit, asyncBefore, asyncAfter);
 </code></pre>
 <pre class="fragment"><code class="javascript">
-// Enable init events (default 0)
+// Enable async_wrap events (default 0)
 // Must be set after `async_wrap.setupHooks` is called
 asyncHooksObject[kCallInitHook] = 1;</code></pre>
 					</section>
@@ -399,31 +399,44 @@ net.connect(80, 'google.com',
 					</section>
 					<section>
 						<pre style="width: 60%; float: left;"><code class="javascript" data-trim>
-var uid = 0;
 function asyncInit() {
-  this._uid = uid++
-  log('async_wrap: init / ' + this._uid);
+  this._start = Date.now();
 }
 function asyncBefore() {
-  log('async_wrap: before / ' + this._uid);
-}
-function asyncAfter() {
-  log('async_wrap: after / ' + this._uid);
+  process._rawDebug(
+    this.constructor.name +
+    ': took ' +
+    (Date.now() - this._start) + ' ms'
+  );
 }
 
 net.connect(80, 'google.com',
-  function (socket) { });
+  function () { });
 						</code></pre>
 						<pre style="width: 40%; float: left; padding-left: 5px;">
 <span style="color: #657b83">$ node handle_mutate.js<blink class="fragment fade-out" data-fragment-index="1">|</blink></span>
-<span class="fragment" data-fragment-index="1" style="color: #cb4b16">async_wrap: init / 0
-async_wrap: init / 1
-async_wrap: before / 1
-async_wrap: init / 2
-async_wrap: after / 1
-async_wrap: before / 2
-async_wrap: after / 2</span>
+<span class="fragment" data-fragment-index="1" style="color: #cb4b16">GetAddrInfoReqWrap: took 2 ms
+TCPConnectWrap: took 4 ms</span>
 						</pre>
+					</section>
+				</section>
+				<section>
+					<h1>Links</h1>
+					<section>
+						<h3 style="margin: 0">Demos, slides, blink tag</h3>
+						<a style="font-size: 70%;" href="https://github.com/AndreasMadsen/talk-async-wrap">
+							https://github.com/AndreasMadsen/talk-async-wrap
+						</a>
+
+						<h3 style="margin: 50px 0 0 0;">npm install trace</h3>
+						<a style="font-size: 70%;" href="https://github.com/AndreasMadsen/trace/">
+							https://github.com/AndreasMadsen/trace/
+						</a>
+
+						<h3 style="margin: 50px 0 0 0;">Trevnorris blog post</h3>
+						<a style="font-size: 70%;" href="http://blog.trevnorris.com/2015/02/asyncwrap-tutorial-introduction.html">
+							http://blog.trevnorris.com/2015/02/asyncwrap-tutorial-introduction.html
+						</a>
 					</section>
 				</section>
 			</div>
